@@ -1,0 +1,20 @@
+aws_region    = "us-east-2"
+project       = "my-lab" # qualquer nome, sem espaços, para identificar os recursos criados
+instance_type = "t3.micro"
+
+vpc_id   = "vpc-xxxxxxxxxx"
+vpc_cidr = "172.31.0.0/16"
+
+# All subnets in the VPC (EC2 launches into the first one)
+subnet_ids = [
+  "subnet-xxxxxxxxxx", # us-east-2a
+  "subnet-xxxxxxxxxx", # us-east-2b
+]
+
+# Only subnets in AZs where S3 Files mount targets are supported.
+# Remove any subnet that returns:
+# "Mount targets are not supported in the provided subnet's availability zone."
+mount_target_subnet_ids = [
+  "subnet-xxxxxxxxxx", # us-east-2a
+  "subnet-xxxxxxxxxx", # us-east-2b
+]

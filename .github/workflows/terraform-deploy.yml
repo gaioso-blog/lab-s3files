@@ -1,0 +1,106 @@
+# Descomente este arquivo para habilitar o workflow de deploy automático.
+
+# name: Terraform Deploy
+#
+# on:
+#   push:
+#     branches: [main, feat/*]
+#   pull_request:
+#     branches: [main]
+#   workflow_dispatch:
+#     inputs:
+#       action:
+#         description: 'Escolha a ação Terraform'
+#         required: true
+#         default: apply
+#         type: choice
+#         options:
+#           - apply
+#           - destroy
+#       confirm:
+#         description: 'Para destroy, digite "destroy"'
+#         required: false
+#         type: string
+#
+# permissions:
+#   contents: read
+#   pull-requests: write
+#
+# env:
+#   TF_WORKING_DIR: infra
+#
+# jobs:
+#   terraform:
+#     name: ${{ github.event_name == 'pull_request' && 'Plan' || github.event.inputs.action == 'destroy' && 'Terraform Destroy' || 'Terraform Deploy' }}
+#     runs-on: ubuntu-latest
+#
+#     defaults:
+#       run:
+#         working-directory: ${{ env.TF_WORKING_DIR }}
+#
+#     steps:
+#       - uses: actions/checkout@v4
+#
+#       - uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: "~> 1.5"
+#
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-2
+#
+#       - name: Terraform Init
+#         run: terraform init
+#
+#       - name: Terraform Validate
+#         run: terraform validate
+#
+#       - name: Terraform Plan
+#         id: plan
+#         if: github.event.inputs.action != 'destroy'
+#         run: terraform plan -no-color -out=tfplan
+#         continue-on-error: true
+#
+#       - name: Comment Plan on PR
+#         if: github.event_name == 'pull_request'
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const output = `#### Terraform Plan \`${{ steps.plan.outcome }}\`
+#             <details><summary>Show Plan</summary>
+#
+#             \`\`\`
+#             ${{ steps.plan.outputs.stdout }}
+#             \`\`\`
+#             </details>`;
+#             github.rest.issues.createComment({
+#               issue_number: context.issue.number,
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               body: output
+#             });
+#
+#       - name: Fail if plan failed
+#         if: steps.plan.outcome == 'failure'
+#         run: exit 1
+#
+#       - name: Terraform Apply
+#         if: github.event_name == 'push' || github.event.inputs.action == 'apply'
+#         run: terraform apply -auto-approve tfplan
+#
+#       - name: Check destroy confirmation
+#         if: github.event.inputs.action == 'destroy' && github.event.inputs.confirm != 'destroy'
+#         run: |
+#           echo 'Para executar destroy, digite exatamente: destroy'
+#           exit 1
+#
+#       - name: Terraform Plan Destroy
+#         if: github.event.inputs.action == 'destroy' && github.event.inputs.confirm == 'destroy'
+#         run: terraform plan -destroy
+#
+#       - name: Terraform Destroy
+#         if: github.event.inputs.action == 'destroy' && github.event.inputs.confirm == 'destroy'
+#         run: terraform destroy -auto-approve
